@@ -1,73 +1,57 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"math/rand"
 
 	"github.com/eddort/go-ok"
 )
 
-func checkAvailability(productId int) ok.Result[int] {
-	if rand.Intn(10) < 2 { // 20% chance that the product is not available
-		return ok.Err[int](fmt.Errorf("product %d is not available", productId))
+func validateProduct(id int) (int, error) {
+	if id <= 0 {
+		return 0, fmt.Errorf("invalid product ID")
 	}
-	return ok.Val(productId) // return productId for next step use
+	return id, nil
 }
 
-func calculateTax(price float64, state string) ok.Result[float64] {
+func calculateTax(id int) (float64, error) {
 	var taxRate float64
-	switch state {
-	case "CA":
+	switch id {
+	case 1:
 		taxRate = 0.075
-	case "NY":
+	case 2:
 		taxRate = 0.085
 	default:
 		taxRate = 0.05
 	}
-	totalPrice := price + price*taxRate
-	return ok.Val(totalPrice) // return totalPrice for next step use
+	return 100 + 100*taxRate, nil
 }
 
-func applyDiscount(totalPrice float64, code string) ok.Result[float64] {
-	if code == "DISCOUNT20" {
-		return ok.Val(totalPrice * 0.8) // 20% discount
+func applyDiscount(price float64) (float64, error) {
+	if price > 100 {
+		return price * 0.8, nil
 	}
-	return ok.Val(totalPrice) // return discounted price for next step use
+	return price, nil
 }
 
-func processPayment(discountedPrice float64) ok.Result[bool] {
-	if discountedPrice > 500 {
-		return ok.Err[bool](errors.New("payment declined, amount too high"))
+func processPayment(price float64) error {
+	if price > 500 {
+		return fmt.Errorf("payment declined")
 	}
-	return ok.Val(true) // return payment success for the next step
+	return nil
 }
 
-func confirmOrder(success bool) ok.Result[bool] {
-	if success {
-		fmt.Println("Order confirmed")
-		return ok.Val(true)
-	}
-	return ok.Err[bool](fmt.Errorf("order confirmation failed"))
-}
-
-func processOrder(productId int, price float64, state, discountCode string) ok.Result[bool] {
-	availability := checkAvailability(productId)
-	taxedPrice := ok.Try(availability, func(_ int) ok.Result[float64] {
-		return calculateTax(price, state)
-	})
-	discountedPrice := ok.Try(taxedPrice, func(price float64) ok.Result[float64] {
-		return applyDiscount(price, discountCode)
-	})
-	payment := ok.Try(discountedPrice, processPayment)
-	finalConfirmation := ok.Try(payment, confirmOrder)
-	return finalConfirmation
+func processOrder(productId int) (float64, error) {
+	id := ok.From(validateProduct(productId))
+	taxedPrice := ok.TryFrom(id, calculateTax)
+	discountedPrice := ok.TryFrom(taxedPrice, applyDiscount)
+	payment := ok.TryErr(discountedPrice, processPayment)
+	return discountedPrice.Value, payment.Err
 }
 
 func main() {
-	order := processOrder(10, 300, "CA", "DISCOUNT20")
-	if order.Err != nil {
-		fmt.Printf("Error processing order: %s\n", order.Err)
+	_, err := processOrder(10)
+	if err != nil {
+		fmt.Printf("Error processing order: %s\n", err)
 	} else {
 		fmt.Println("Order processed successfully")
 	}

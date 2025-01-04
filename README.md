@@ -13,6 +13,7 @@ Error handling in Go traditionally relies on multiple `if err != nil` checks aft
 3. **Nested Logic:** Complex workflows often result in deeply nested code, reducing readability.
 
 ### The `go-ok` Advantage:
+
 `go-ok` addresses these issues by introducing a `Result` type, similar to Rust's `Result<T, E>`, and a set of utilities for propagating errors seamlessly. It enforces error handling through chaining while keeping code flat and readable. This approach combines Go's simplicity with Rust's safety guarantees.
 
 ---
@@ -30,6 +31,7 @@ go get github.com/eddort/go-ok
 ## Example: Traditional Go vs. `go-ok`
 
 ### Common Functions
+
 ```go
 func validateProduct(id int) (int, error) {
     if id <= 0 {
@@ -38,28 +40,28 @@ func validateProduct(id int) (int, error) {
     return id, nil
 }
 
-func calculateTax(price float64, state string) (float64, error) {
+func calculateTax(id int) (float64, error) {
     var taxRate float64
-    switch state {
-    case "CA":
+    switch id {
+    case 1:
         taxRate = 0.075
-    case "NY":
+    case 2:
         taxRate = 0.085
     default:
         taxRate = 0.05
     }
-    return price + price*taxRate, nil
+    return 100 + 100*taxRate, nil
 }
 
-func applyDiscount(price float64, code string) (float64, error) {
-    if code == "DISCOUNT20" {
+func applyDiscount(price float64) (float64, error) {
+    if price > 100 {
         return price * 0.8, nil
     }
     return price, nil
 }
 
-func processPayment(amount float64) error {
-    if amount > 500 {
+func processPayment(price float64) error {
+    if price > 500 {
         return fmt.Errorf("payment declined")
     }
     return nil
@@ -67,24 +69,26 @@ func processPayment(amount float64) error {
 ```
 
 ### Without `go-ok`
+
 ```go
-func processOrder(productId int, price float64, state, discountCode string) (float64, error) {
+func processOrder(productId int) (float64, error) {
     id, err := validateProduct(productId)
     if err != nil {
         return 0, err
     }
 
-    taxedPrice, err := calculateTax(price, state)
+    taxedPrice, err := calculateTax(id)
     if err != nil {
         return 0, err
     }
 
-    discountedPrice, err := applyDiscount(taxedPrice, discountCode)
+    discountedPrice, err := applyDiscount(taxedPrice)
     if err != nil {
         return 0, err
     }
 
-    if err := processPayment(discountedPrice); err != nil {
+    _, err = processPayment(discountedPrice)
+    if err != nil {
         return 0, err
     }
 
@@ -93,32 +97,25 @@ func processOrder(productId int, price float64, state, discountCode string) (flo
 ```
 
 Issues:
+
 - Errors are manually checked after each step.
 - Repetitive error handling increases boilerplate code.
 - Nested logic reduces readability and makes workflows harder to maintain.
 
 ### With `go-ok`
+
 ```go
 func processOrder(productId int, price float64, state, discountCode string) ok.Result[float64] {
     id := ok.From(validateProduct(productId))
-    taxedPrice := ok.TryFrom(id, func(_ int) (float64, error) {
-        return calculateTax(price, state)
-    })
-    discountedPrice := ok.TryFrom(taxedPrice, func(p float64) (float64, error) {
-        return applyDiscount(p, discountCode)
-    })
-    payment := ok.TryFrom(discountedPrice, func(p float64) (error) {
-        return processPayment(p)
-    })
-
-    if payment.Err != nil {
-        return ok.Err[float64](payment.Err)
-    }
-    return discountedPrice
+    taxedPrice := ok.TryFrom(id, calculateTax)
+    discountedPrice := ok.TryFrom(taxedPrice, applyDiscount)
+    payment := ok.TryErr(discountedPrice, processPayment)
+    return discountedPrice.Value, payment.Err
 }
 ```
 
 Advantages:
+
 - **Flat structure:** No deep nesting, even with multiple steps.
 - **Automatic error propagation:** Errors stop the chain immediately, returning the first encountered error.
 - **Safety enforced by type system:** Results must be explicitly handled.
