@@ -56,18 +56,19 @@ func TestTry(t *testing.T) {
 }
 
 func TestUnwrap(t *testing.T) {
+	// Test case 1: Successful value
 	result := Val(123)
-	if v := result.Unwrap(); v != 123 {
-		t.Errorf("Unwrap failed: expected 123, got %v", v)
+	v, err := result.Unwrap()
+	if v != 123 || err != nil {
+		t.Errorf("Unwrap failed: expected 123 and nil error, got value: %v, error: %v", v, err)
 	}
 
+	// Test case 2: Error case
 	result = Err[int](errors.New("unwrap error"))
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic for Unwrap with error, but did not occur")
-		}
-	}()
-	result.Unwrap() // should panic
+	v, err = result.Unwrap()
+	if v != 0 || err == nil { // Expect zero value and non-nil error
+		t.Errorf("Unwrap failed: expected zero value and non-nil error, got value: %v, error: %v", v, err)
+	}
 }
 
 // Test TryFrom - handles (value, error) return from callback

@@ -87,11 +87,8 @@ func TryErr[T any](r Result[T], cb func(T) error, context ...string) Result[T] {
 }
 
 // Unwrap extracts the value, panicking if an error is present.
-func (r Result[T]) Unwrap() T {
-	if r.Err != nil {
-		panic("Unwrap failed: " + r.Err.Error())
-	}
-	return r.Value
+func (r Result[T]) Unwrap() (T, error) {
+	return r.Value, r.Err
 }
 
 // UnwrapOr extracts the value or returns a default value if an error is present.
