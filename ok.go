@@ -4,24 +4,26 @@ import (
 	"errors"
 )
 
-// Result — структура для хранения значения или ошибки
+// Result represents a container for either a value or an error.
 type Result[T any] struct {
 	Value T
 	Err   error
 }
 
-// Val — создаёт Result с успешным значением
+// Val creates a Result with a successful value.
 func Val[T any](value T) Result[T] {
 	return Result[T]{Value: value, Err: nil}
 }
 
-// Err — создаёт Result с ошибкой
+// Err creates a Result containing an error.
+// It initializes the value to the zero value of the specified type.
 func Err[T any](err error) Result[T] {
 	var zero T
 	return Result[T]{Value: zero, Err: err}
 }
 
-// From — создаёт Result из значения и ошибки
+// From creates a Result based on a value and an error.
+// If the error is non-nil, it wraps the error in a Result.
 func From[T any](value T, err error) Result[T] {
 	if err != nil {
 		return Err[T](err)
@@ -29,7 +31,7 @@ func From[T any](value T, err error) Result[T] {
 	return Val(value)
 }
 
-// Вспомогательная функция для добавления контекста к ошибке
+// wrapContext adds context to an error by joining it with additional information.
 func wrapContext(err error, context ...string) error {
 	if len(context) > 0 {
 		return errors.Join(errors.New(context[0]), err)
@@ -37,7 +39,8 @@ func wrapContext(err error, context ...string) error {
 	return err
 }
 
-// Try — для функций, возвращающих Result
+// Try applies a function that returns a Result and propagates errors if present.
+// It wraps errors with additional context if needed.
 func Try[T, U any](r Result[T], cb func(T) Result[U], context ...string) Result[U] {
 	if r.Err != nil {
 		return Err[U](wrapContext(r.Err, context...))
@@ -49,7 +52,8 @@ func Try[T, U any](r Result[T], cb func(T) Result[U], context ...string) Result[
 	return res
 }
 
-// TryFrom — для функций, возвращающих (значение, ошибку)
+// TryFrom applies a function that returns a value and an error.
+// It propagates errors and wraps them with context if necessary.
 func TryFrom[T, U any](r Result[T], cb func(T) (U, error), context ...string) Result[U] {
 	if r.Err != nil {
 		return Err[U](wrapContext(r.Err, context...))
@@ -61,7 +65,8 @@ func TryFrom[T, U any](r Result[T], cb func(T) (U, error), context ...string) Re
 	return Val(value)
 }
 
-// TryVal — для функций, возвращающих только значение
+// TryVal applies a function that returns only a value.
+// Errors are propagated without modifying the result.
 func TryVal[T, U any](r Result[T], cb func(T) U) Result[U] {
 	if r.Err != nil {
 		return Err[U](r.Err)
@@ -69,7 +74,8 @@ func TryVal[T, U any](r Result[T], cb func(T) U) Result[U] {
 	return Val(cb(r.Value))
 }
 
-// TryErr — для функций, возвращающих только ошибку
+// TryErr applies a function that returns only an error.
+// It propagates errors with context if they occur.
 func TryErr[T any](r Result[T], cb func(T) error, context ...string) Result[T] {
 	if r.Err != nil {
 		return Err[T](wrapContext(r.Err, context...))
@@ -80,7 +86,7 @@ func TryErr[T any](r Result[T], cb func(T) error, context ...string) Result[T] {
 	return r
 }
 
-// Unwrap — извлекает значение, вызывает панику в случае ошибки
+// Unwrap extracts the value, panicking if an error is present.
 func (r Result[T]) Unwrap() T {
 	if r.Err != nil {
 		panic("Unwrap failed: " + r.Err.Error())
@@ -88,7 +94,7 @@ func (r Result[T]) Unwrap() T {
 	return r.Value
 }
 
-// UnwrapOr — извлекает значение или возвращает значение по умолчанию
+// UnwrapOr extracts the value or returns a default value if an error is present.
 func (r Result[T]) UnwrapOr(defaultValue T) T {
 	if r.Err != nil {
 		return defaultValue
@@ -96,7 +102,7 @@ func (r Result[T]) UnwrapOr(defaultValue T) T {
 	return r.Value
 }
 
-// UnwrapOrElse — извлекает значение или вызывает функцию для получения значения
+// UnwrapOrElse extracts the value or calls a fallback function to produce a default value if an error is present.
 func (r Result[T]) UnwrapOrElse(fallback func() T) T {
 	if r.Err != nil {
 		return fallback()
