@@ -105,12 +105,12 @@ Issues:
 ### With `go-ok`
 
 ```go
-func processOrder(productId int, price float64, state, discountCode string) ok.Result[float64] {
-    id := ok.From(validateProduct(productId))
-    taxedPrice := ok.TryFrom(id, calculateTax)
-    discountedPrice := ok.TryFrom(taxedPrice, applyDiscount)
-    payment := ok.TryErr(discountedPrice, processPayment)
-    return discountedPrice.Value, payment.Err
+func processOrder(productId int) (float64, error) {
+	id := ok.From(validateProduct(productId))
+	taxedPrice := ok.TryFrom(id, calculateTax)
+	discountedPrice := ok.TryFrom(taxedPrice, applyDiscount)
+	payment := ok.TryErr(discountedPrice, processPayment)
+	return discountedPrice.Value, payment.Err
 }
 ```
 
